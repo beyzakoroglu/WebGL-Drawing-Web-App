@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="eng">
+<head>
+    <title>WebGL Drawing App</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        #glCanvas {
+            border: 1px solid black;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+        }
+
+        .row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .slider-container span {
+            margin-right: 10px;
+        }
+
+        #scaleSlider {
+            flex: 1;
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 30px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+            background-color: white;
+            cursor: pointer;
+        }
+    </style>
+    <script type="module" src="js/new_app.js"></script>
+    <script type="module" src="js/webgl-utils.js"></script>
+    <script type="module" src="js/shaders.js"></script>
+</head>
+<body>
+<canvas id="glCanvas" width="640" height="640"></canvas>
+<div id="controls">
+    <div class="row">
+        <div class="color-picker" id="colorPicker"></div>
+        <button id="drawButton">Draw</button>
+        <button id="clearButton">Clear</button>
+    </div>
+    <div class="row">
+        <button id="rightButton">Right</button>
+        <button id="leftButton">Left</button>
+        <button id="upButton">Up</button>
+        <button id="downButton">Down</button>
+    </div>
+    <div class="row">
+        <button id="clockwiseButton">Clockwise</button>
+        <button id="counterClockwiseButton">Counterclockwise</button>
+    </div>
+    <div class="slider-container">
+        <span>Scale</span>
+        <input type="range" id="scaleSlider" min="0.1" max="2" step="0.1" value="1">
+    </div>
+    <div class="row">
+        <button id="fillButton">Fill</button>
+    </div>
+</div>
+</body>
+</html>
