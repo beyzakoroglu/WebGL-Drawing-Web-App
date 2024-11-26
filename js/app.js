@@ -2,6 +2,7 @@
 
 import { createProgram, createShader } from "./webgl-utils.js";
 import { fragmentShaderSource, vertexShaderSource } from "./shaders.js";
+import {triangulate} from "./triangulate.js";
 
 let canvas;
 let gl;
@@ -70,6 +71,15 @@ window.onload = function init() {
         gl.clear(gl.COLOR_BUFFER_BIT);
 
     });
+
+    const fillButton = document.getElementById("fillButton");
+    fillButton.addEventListener("click", () => {
+        if (points.length < 3) {
+            alert("At least 3 points are required to fill a shape.");
+            return;
+        }
+        fillShape();
+    });
 };
 
 /*function drawPoints() {
@@ -118,6 +128,50 @@ function drawLines() {
 
     gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2);
 }
+
+
+function fillShape() {
+    const vertices = pointsToVertices(points);
+    const { success, triangles, errorMessage } = triangulate(vertices);
+
+    if (!success) {
+        console.error(errorMessage);
+        return;
+    }
+
+    // to make 2D array 1D = to flatten
+    const flattenedTriangles = triangles.flatMap(index => [vertices[index].x, vertices[index].y]);
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(flattenedTriangles), gl.STATIC_DRAW);
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const program = createProgram(gl, vertexShader, fragmentShader);
+    gl.useProgram(program);
+
+    const aPosition = gl.getAttribLocation(program, "aPosition");
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    const uColor = gl.getUniformLocation(program, "uColor");
+    gl.uniform4fv(uColor, currentColor);
+
+    gl.drawArrays(gl.TRIANGLES, 0, flattenedTriangles.length / 2);
+}
+
+
+function pointsToVertices(pointsArray) {
+    const vertices = [];
+    for (let i = 0; i < pointsArray.length; i += 2) {
+        vertices.push({x: pointsArray[i], y: pointsArray[i + 1]});
+    }
+    return vertices;
+}
+
+
+
 
 
 // to convert HEX to normalized RGBA
