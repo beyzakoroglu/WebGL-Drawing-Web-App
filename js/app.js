@@ -2,7 +2,7 @@
 
 import { createProgram, createShader } from "./webgl-utils.js";
 import { fragmentShaderSource, vertexShaderSource } from "./shaders.js";
-import {triangulate} from "./triangulate.js";
+import { triangulate } from "./triangulate.js";
 
 let canvas;
 let gl;
@@ -10,6 +10,11 @@ let points = [];
 
 let isDrawing = false;
 let currentColor = [0.0, 0.0, 0.0, 1.0];
+
+let translation = [0.0, 0.0];
+const translationAmount = 0.1;
+
+let scale = 1.0;
 
 window.onload = function init() {
     canvas = document.getElementById("glCanvas");
@@ -41,6 +46,7 @@ window.onload = function init() {
 
     const drawButton = document.getElementById("drawButton");
     drawButton.addEventListener("click", () => {
+        translation = [0, 0];
         isDrawing = true;
         canvas.style.cursor = "crosshair";
     });
@@ -52,8 +58,6 @@ window.onload = function init() {
             const y = -((event.clientY - rect.top) / canvas.height * 2 - 1);
             points.push(x, y);
 
-            console.log("Points:", points);
-
             //drawPoints();
             if (points.length >= 2) {
                 drawLines();
@@ -63,6 +67,8 @@ window.onload = function init() {
 
     const clearButton = document.getElementById("clearButton");
     clearButton.addEventListener("click", () => {
+        translation = [0, 0];
+        scale = 1.0;
         isDrawing = false;
         canvas.style.cursor = "default";
 
@@ -70,8 +76,12 @@ window.onload = function init() {
         gl.clearColor(1.0, 1.0, 1.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
+        // set slider value as default
+        const scaleSlider = document.getElementById("scaleSlider");
+        scaleSlider.value = 1.0;
     });
 
+    // fill button
     const fillButton = document.getElementById("fillButton");
     fillButton.addEventListener("click", () => {
         if (points.length < 3) {
@@ -80,7 +90,71 @@ window.onload = function init() {
         }
         fillShape();
     });
+
+
+    // translation buttons
+    const rightButton  = document.getElementById("rightButton");
+    const leftButton = document.getElementById("leftButton");
+    const upButton  = document.getElementById("upButton");
+    const downButton = document.getElementById("downButton");
+
+    rightButton.addEventListener("click", () => {
+        isDrawing = false;
+        translation[0] += translationAmount;
+        for (let i = 0; i < points.length; i += 2) {
+            points[i] += translationAmount;
+        }
+        redraw();
+    });
+
+    leftButton.addEventListener("click", () => {
+        isDrawing = false;
+        translation[0] -= translationAmount;
+        for (let i = 0; i < points.length; i += 2) {
+            points[i] -= translationAmount;
+        }
+        redraw();
+    });
+
+    upButton.addEventListener("click", () => {
+        isDrawing = false;
+        translation[1] += translationAmount;
+        for (let i = 1; i <= points.length; i += 2) {
+            points[i] += translationAmount;
+        }
+        redraw();
+    });
+
+    downButton.addEventListener("click", () => {
+        isDrawing = false;
+        translation[1] -= translationAmount;
+        for (let i = 1; i < points.length; i += 2) {
+            points[i] -= translationAmount;
+        }
+        redraw();
+    });
+
+
+    const scaleSlider = document.getElementById("scaleSlider");
+    scaleSlider.addEventListener("change", () => {
+        isDrawing = false;
+        const newScale = parseFloat(event.target.value);
+
+        // calculating the geometric center of the shape
+        const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+        const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+
+        for (let i = 0; i < points.length; i += 2) {
+            points[i] = centerX + (points[i] - centerX) * newScale;
+            points[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
+        }
+
+        scale = newScale;
+        redraw();
+    });
+
 };
+
 
 /*function drawPoints() {
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
@@ -106,6 +180,7 @@ window.onload = function init() {
     gl.drawArrays(gl.POINTS, 0, points.length / 2);
 }*/
 
+
 function drawLines() {
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -122,6 +197,14 @@ function drawLines() {
     gl.enableVertexAttribArray(aPosition);
     gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
 
+    // pass translation value
+    const uTranslation = gl.getUniformLocation(program, "uTranslation");
+    gl.uniform2fv(uTranslation, translation);
+
+    // pass the scale value
+    const uScale = gl.getUniformLocation(program, "uScale");
+    gl.uniform1f(uScale, scale);
+
     // pass the selected color
     const uColor = gl.getUniformLocation(program, "uColor");
     gl.uniform4fv(uColor, currentColor);
@@ -129,10 +212,16 @@ function drawLines() {
     gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2);
 }
 
+function redraw() {
+    fillShape();
+}
+
 
 function fillShape() {
     const vertices = pointsToVertices(points);
     const { success, triangles, errorMessage } = triangulate(vertices);
+
+    console.log("FILLING POINTS: ", vertices);
 
     if (!success) {
         console.error(errorMessage);
@@ -155,6 +244,14 @@ function fillShape() {
     gl.enableVertexAttribArray(aPosition);
     gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
 
+    // pass translation value
+    const uTranslation = gl.getUniformLocation(program, "uTranslation");
+    gl.uniform2fv(uTranslation, translation);
+
+    // pass the scale value
+    const uScale = gl.getUniformLocation(program, "uScale");
+    gl.uniform1f(uScale, scale);
+
     const uColor = gl.getUniformLocation(program, "uColor");
     gl.uniform4fv(uColor, currentColor);
 
@@ -169,9 +266,6 @@ function pointsToVertices(pointsArray) {
     }
     return vertices;
 }
-
-
-
 
 
 // to convert HEX to normalized RGBA

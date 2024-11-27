@@ -22,15 +22,15 @@ export function triangulate(vertices) {
         return { success: false, triangles, errorMessage };
     }
 
-    console.log("vertices length:");
-    console.log(vertices.length);
+    //console.log("vertices length:");
+    //console.log(vertices.length);
 
     const indexList = [];
     for (let i = 0; i < vertices.length; i++) {
         indexList.push(i);
     }
 
-    console.log('indexList: ', indexList);
+    //console.log('indexList: ', indexList);
 
     // Ear clipping to find triangles
     while (indexList.length > 3) {
@@ -41,7 +41,7 @@ export function triangulate(vertices) {
             const b = getItem(indexList, i - 1);
             const c = getItem(indexList, i + 1);
 
-            console.log('checking: ', b, a, c);
+            //console.log('checking: ', b, a, c);
 
             const va = vertices[a];
             const vb = vertices[b];
@@ -50,7 +50,15 @@ export function triangulate(vertices) {
             const vector_va_vb = subtractVectors(vb, va);
             const vector_va_vc = subtractVectors(vc, va);
 
-            if (crossProduct(vector_va_vb, vector_va_vc) < 0) {
+            /*if (crossProduct(vector_va_vb, vector_va_vc) < 0) {
+                //inverse yap
+                console.log('Not a convex vertex, skip it');
+                continue;
+            } */
+
+            const isPolygonCCW = isCCW(vertices);
+            if ((isPolygonCCW && crossProduct(vector_va_vb, vector_va_vc) < 0) ||
+                (!isPolygonCCW && crossProduct(vector_va_vb, vector_va_vc) > 0)) {
                 console.log('Not a convex vertex, skip it');
                 continue;
             }
@@ -62,18 +70,18 @@ export function triangulate(vertices) {
                 if (j === a || j === b || j === c) continue;
 
                 const p = vertices[j];
-                console.log('Is P inside the triangle => ', p);
+                //console.log('Is P inside the triangle => ', p);
 
                 if (isPointInTriangle(p, va, vb, vc)) {
                     isEar = false;
-                    console.log('Yes it is inside the triangle => ', p);
+                    //console.log('Yes it is inside the triangle => ', p);
                     break;
                 }
             }
 
             if (isEar) {
                 // Add the triangle points to the list
-                console.log(b, a, c, ' is triangle');
+                //console.log(b, a, c, ' is triangle');
                 triangles.push(b, a, c);
 
                 // Remove the ear vertex
@@ -85,6 +93,7 @@ export function triangulate(vertices) {
 
         if (!earFound) {
             errorMessage = 'Failed to find an ear to clip.';
+            alert("This shape is not suitable for drawing. Please ensure that it is convex!");
             return { success: false, triangles, errorMessage };
         }
     }
@@ -108,12 +117,20 @@ export function isPointInTriangle(p, a, b, c) {
     const cross2 = crossProduct(bc, bp);
     const cross3 = crossProduct(ca, cp);
 
-    if (cross1 < 0 || cross2 < 0 || cross3 < 0) {
-        return false;
-    }
-    return true;
+    return !(cross1 < 0 || cross2 < 0 || cross3 < 0);
+
 }
 
 export function subtractVectors(v1, v2) {
     return { x: v1.x - v2.x, y: v1.y - v2.y };
+}
+
+export function isCCW(vertices) {
+    let sum = 0;
+    for (let i = 0; i < vertices.length; i++) {
+        const current = vertices[i];
+        const next = vertices[(i + 1) % vertices.length];
+        sum += (next.x - current.x) * (next.y + current.y);
+    }
+    return sum > 0; // CCW
 }
