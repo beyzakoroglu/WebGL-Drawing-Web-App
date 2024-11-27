@@ -17,6 +17,8 @@ const translationAmount = 0.1;
 
 let scale = 1.0;
 
+let rotationAngle = 0;
+
 window.onload = function init() {
     canvas = document.getElementById("glCanvas");
     gl = canvas.getContext("webgl2");
@@ -68,6 +70,7 @@ window.onload = function init() {
         }
     });
 
+    // clear button
     const clearButton = document.getElementById("clearButton");
     clearButton.addEventListener("click", () => {
         translation = [0, 0];
@@ -85,6 +88,7 @@ window.onload = function init() {
         const scaleSlider = document.getElementById("scaleSlider");
         scaleSlider.value = 1.0;
     });
+
 
     // fill button
     const fillButton = document.getElementById("fillButton");
@@ -144,6 +148,7 @@ window.onload = function init() {
     });
 
 
+    // scale slider
     const scaleSlider = document.getElementById("scaleSlider");
     scaleSlider.addEventListener("change", (event) => {
         isDrawing = false;
@@ -161,7 +166,6 @@ window.onload = function init() {
 
             pointsCopy[i] = centerX + (points[i] - centerX) * newScale;
             pointsCopy[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
-
         }
 
         console.log("MY POINTS: ", pointsCopy);
@@ -171,21 +175,24 @@ window.onload = function init() {
         redraw();
     });
 
+    // rotation buttons
     const clockwiseButton = document.getElementById("clockwiseButton");
     const counterClockwiseButton = document.getElementById("counterClockwiseButton");
 
     clockwiseButton.addEventListener("click", () => {
-        rotateShape(-Math.PI / 18); // Rotate by -10 degrees (clockwise)
+        rotationAngle -= Math.PI / 18;
+        redraw();
     });
 
     counterClockwiseButton.addEventListener("click", () => {
-        rotateShape(Math.PI / 18); // Rotate by 10 degrees (counterclockwise)
+        rotationAngle += Math.PI / 18;
+        redraw();
     });
 
 };
 
 
-function rotateShape(angle) {
+/*function rotateShape(angle) {
     isDrawing = false;
 
     const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
@@ -204,7 +211,7 @@ function rotateShape(angle) {
     }
 
     redraw();
-}
+}*/
 
 
 /*function drawPoints() {
@@ -269,8 +276,6 @@ function redraw() {
 
 
 function fillShape() {
-    //const vertices = pointsToVertices(points);
-
     const vertices = pointsToVertices(pointsCopy);
     const { success, triangles, errorMessage } = triangulate(vertices);
 
@@ -281,7 +286,7 @@ function fillShape() {
         return;
     }
 
-    // to make 2D array 1D = to flatten
+    // to make 2D array 1D means flattening
     const flattenedTriangles = triangles.flatMap(index => [vertices[index].x, vertices[index].y]);
 
     const buffer = gl.createBuffer();
@@ -300,6 +305,17 @@ function fillShape() {
     // pass translation value
     const uTranslation = gl.getUniformLocation(program, "uTranslation");
     gl.uniform2fv(uTranslation, translation);
+
+    // pass the center of rotation
+    const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+    const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+    const uCenter = gl.getUniformLocation(program, "uCenter");
+    gl.uniform2fv(uCenter, [centerX, centerY]);
+
+    // pass the rotation angle
+    const uAngle = gl.getUniformLocation(program, "uAngle");
+    gl.uniform1f(uAngle, rotationAngle);
+
 
     // pass the scale value
     //const uScale = gl.getUniformLocation(program, "uScale");
