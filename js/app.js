@@ -7,6 +7,7 @@ import { triangulate } from "./triangulate.js";
 let canvas;
 let gl;
 let points = [];
+let pointsCopy = [];
 
 let isDrawing = false;
 let currentColor = [0.0, 0.0, 0.0, 1.0];
@@ -56,7 +57,9 @@ window.onload = function init() {
             const rect = canvas.getBoundingClientRect();
             const x = (event.clientX - rect.left) / canvas.width * 2 - 1;
             const y = -((event.clientY - rect.top) / canvas.height * 2 - 1);
+
             points.push(x, y);
+            pointsCopy.push(x, y);
 
             //drawPoints();
             if (points.length >= 2) {
@@ -73,6 +76,8 @@ window.onload = function init() {
         canvas.style.cursor = "default";
 
         points = [];
+        pointsCopy = [];
+
         gl.clearColor(1.0, 1.0, 1.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -103,6 +108,7 @@ window.onload = function init() {
         translation[0] += translationAmount;
         for (let i = 0; i < points.length; i += 2) {
             points[i] += translationAmount;
+            pointsCopy[i] += translationAmount;
         }
         redraw();
     });
@@ -112,6 +118,7 @@ window.onload = function init() {
         translation[0] -= translationAmount;
         for (let i = 0; i < points.length; i += 2) {
             points[i] -= translationAmount;
+            pointsCopy[i] -= translationAmount;
         }
         redraw();
     });
@@ -121,6 +128,7 @@ window.onload = function init() {
         translation[1] += translationAmount;
         for (let i = 1; i <= points.length; i += 2) {
             points[i] += translationAmount;
+            pointsCopy[i] += translationAmount;
         }
         redraw();
     });
@@ -130,30 +138,73 @@ window.onload = function init() {
         translation[1] -= translationAmount;
         for (let i = 1; i < points.length; i += 2) {
             points[i] -= translationAmount;
+            pointsCopy[i] -= translationAmount;
         }
         redraw();
     });
 
 
     const scaleSlider = document.getElementById("scaleSlider");
-    scaleSlider.addEventListener("change", () => {
+    scaleSlider.addEventListener("change", (event) => {
         isDrawing = false;
-        const newScale = parseFloat(event.target.value);
+        let newScale = parseFloat(event.target.value);
 
         // calculating the geometric center of the shape
         const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
         const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
 
+        console.log("CENTER OF THE SHAPE: " + centerX + "," + centerY);
+
         for (let i = 0; i < points.length; i += 2) {
-            points[i] = centerX + (points[i] - centerX) * newScale;
-            points[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
+            //points[i] = centerX + (points[i] - centerX) * newScale;
+            //points[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
+
+            pointsCopy[i] = centerX + (points[i] - centerX) * newScale;
+            pointsCopy[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
+
         }
 
+        console.log("MY POINTS: ", pointsCopy);
+
         scale = newScale;
+        console.log(scale);
         redraw();
     });
 
+    const clockwiseButton = document.getElementById("clockwiseButton");
+    const counterClockwiseButton = document.getElementById("counterClockwiseButton");
+
+    clockwiseButton.addEventListener("click", () => {
+        rotateShape(-Math.PI / 18); // Rotate by -10 degrees (clockwise)
+    });
+
+    counterClockwiseButton.addEventListener("click", () => {
+        rotateShape(Math.PI / 18); // Rotate by 10 degrees (counterclockwise)
+    });
+
 };
+
+
+function rotateShape(angle) {
+    isDrawing = false;
+
+    const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+    const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+
+    // rotation
+    for (let i = 0; i < points.length; i += 2) {
+        const x = points[i];
+        const y = points[i + 1];
+
+        points[i] = centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle);
+        points[i + 1] = centerY + (x - centerX) * Math.sin(angle) + (y - centerY) * Math.cos(angle);
+
+        pointsCopy[i] = points[i];
+        pointsCopy[i + 1] = points[i + 1];
+    }
+
+    redraw();
+}
 
 
 /*function drawPoints() {
@@ -202,8 +253,8 @@ function drawLines() {
     gl.uniform2fv(uTranslation, translation);
 
     // pass the scale value
-    const uScale = gl.getUniformLocation(program, "uScale");
-    gl.uniform1f(uScale, scale);
+    //const uScale = gl.getUniformLocation(program, "uScale");
+    //gl.uniform1f(uScale, scale);
 
     // pass the selected color
     const uColor = gl.getUniformLocation(program, "uColor");
@@ -218,7 +269,9 @@ function redraw() {
 
 
 function fillShape() {
-    const vertices = pointsToVertices(points);
+    //const vertices = pointsToVertices(points);
+
+    const vertices = pointsToVertices(pointsCopy);
     const { success, triangles, errorMessage } = triangulate(vertices);
 
     console.log("FILLING POINTS: ", vertices);
@@ -249,8 +302,8 @@ function fillShape() {
     gl.uniform2fv(uTranslation, translation);
 
     // pass the scale value
-    const uScale = gl.getUniformLocation(program, "uScale");
-    gl.uniform1f(uScale, scale);
+    //const uScale = gl.getUniformLocation(program, "uScale");
+    //gl.uniform1f(uScale, scale);
 
     const uColor = gl.getUniformLocation(program, "uColor");
     gl.uniform4fv(uColor, currentColor);
