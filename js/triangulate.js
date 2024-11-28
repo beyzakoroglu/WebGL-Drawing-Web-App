@@ -11,7 +11,7 @@ export function triangulate(vertices) {
     const triangles = [];
     let errorMessage = '';
 
-    // Check if the input vertices are valid
+    // check if the input vertices are valid
     if (!vertices) {
         errorMessage = 'The vertex list is null.';
         return { success: false, triangles, errorMessage };
@@ -32,7 +32,7 @@ export function triangulate(vertices) {
 
     //console.log('indexList: ', indexList);
 
-    // Ear clipping to find triangles
+    // ear clipping to find triangles
     while (indexList.length > 3) {
         let earFound = false;
 
@@ -50,12 +50,6 @@ export function triangulate(vertices) {
             const vector_va_vb = subtractVectors(vb, va);
             const vector_va_vc = subtractVectors(vc, va);
 
-            /*if (crossProduct(vector_va_vb, vector_va_vc) < 0) {
-                //inverse yap
-                console.log('Not a convex vertex, skip it');
-                continue;
-            } */
-
             const isPolygonCCW = isCCW(vertices);
             if ((isPolygonCCW && crossProduct(vector_va_vb, vector_va_vc) < 0) ||
                 (!isPolygonCCW && crossProduct(vector_va_vb, vector_va_vc) > 0)) {
@@ -65,7 +59,7 @@ export function triangulate(vertices) {
 
             let isEar = true;
 
-            // Checking if any other point exists inside the triangle
+            // checking if any other point exists inside the triangle
             for (let j = 0; j < vertices.length; j++) {
                 if (j === a || j === b || j === c) continue;
 
@@ -93,12 +87,12 @@ export function triangulate(vertices) {
 
         if (!earFound) {
             errorMessage = 'Failed to find an ear to clip.';
-            alert("This shape is not suitable for drawing. Please ensure that it is convex!");
+            alert("THIS SHAPE IS NOT SUITABLE FOR DRAWING. PLEASE REDRAW!");
             return { success: false, triangles, errorMessage };
         }
     }
 
-    // Add the final triangle
+    // add the final triangle
     triangles.push(indexList[0], indexList[1], indexList[2]);
 
     return { success: true, triangles, errorMessage };

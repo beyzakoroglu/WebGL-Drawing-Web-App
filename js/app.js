@@ -10,6 +10,7 @@ let points = [];
 let pointsCopy = [];
 
 let isDrawing = false;
+let isFilled = false;
 let currentColor = [0.0, 0.0, 0.0, 1.0];
 
 let translation = [0.0, 0.0];
@@ -73,9 +74,11 @@ window.onload = function init() {
     // clear button
     const clearButton = document.getElementById("clearButton");
     clearButton.addEventListener("click", () => {
+        rotationAngle = 0;
         translation = [0, 0];
         scale = 1.0;
         isDrawing = false;
+        isFilled = false;
         canvas.style.cursor = "default";
 
         points = [];
@@ -93,6 +96,10 @@ window.onload = function init() {
     // fill button
     const fillButton = document.getElementById("fillButton");
     fillButton.addEventListener("click", () => {
+        isDrawing = false;
+        isFilled = true;
+        canvas.style.cursor = "default";
+
         if (points.length < 3) {
             alert("At least 3 points are required to fill a shape.");
             return;
@@ -109,6 +116,8 @@ window.onload = function init() {
 
     rightButton.addEventListener("click", () => {
         isDrawing = false;
+        canvas.style.cursor = "default";
+
         translation[0] += translationAmount;
         for (let i = 0; i < points.length; i += 2) {
             points[i] += translationAmount;
@@ -119,6 +128,8 @@ window.onload = function init() {
 
     leftButton.addEventListener("click", () => {
         isDrawing = false;
+        canvas.style.cursor = "default";
+
         translation[0] -= translationAmount;
         for (let i = 0; i < points.length; i += 2) {
             points[i] -= translationAmount;
@@ -129,6 +140,8 @@ window.onload = function init() {
 
     upButton.addEventListener("click", () => {
         isDrawing = false;
+        canvas.style.cursor = "default";
+
         translation[1] += translationAmount;
         for (let i = 1; i <= points.length; i += 2) {
             points[i] += translationAmount;
@@ -139,6 +152,8 @@ window.onload = function init() {
 
     downButton.addEventListener("click", () => {
         isDrawing = false;
+        canvas.style.cursor = "default";
+
         translation[1] -= translationAmount;
         for (let i = 1; i < points.length; i += 2) {
             points[i] -= translationAmount;
@@ -152,44 +167,159 @@ window.onload = function init() {
     const scaleSlider = document.getElementById("scaleSlider");
     scaleSlider.addEventListener("change", (event) => {
         isDrawing = false;
-        let newScale = parseFloat(event.target.value);
+        canvas.style.cursor = "default";
 
-        // calculating the geometric center of the shape
-        const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
-        const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
-
-        console.log("CENTER OF THE SHAPE: " + centerX + "," + centerY);
-
-        for (let i = 0; i < points.length; i += 2) {
-            //points[i] = centerX + (points[i] - centerX) * newScale;
-            //points[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
-
-            pointsCopy[i] = centerX + (points[i] - centerX) * newScale;
-            pointsCopy[i + 1] = centerY + (points[i + 1] - centerY) * newScale;
-        }
-
-        console.log("MY POINTS: ", pointsCopy);
-
-        scale = newScale;
+        scale = parseFloat(event.target.value);
         console.log(scale);
         redraw();
     });
 
+
     // rotation buttons
     const clockwiseButton = document.getElementById("clockwiseButton");
-    const counterClockwiseButton = document.getElementById("counterClockwiseButton");
-
     clockwiseButton.addEventListener("click", () => {
+        isDrawing = false;
+        canvas.style.cursor = "default";
+
         rotationAngle -= Math.PI / 18;
         redraw();
     });
 
+    const counterClockwiseButton = document.getElementById("counterClockwiseButton");
     counterClockwiseButton.addEventListener("click", () => {
+        isDrawing = false;
+        canvas.style.cursor = "default";
+
         rotationAngle += Math.PI / 18;
         redraw();
     });
 
 };
+
+function drawLines() {
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+
+    //drawPoints();
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const program = createProgram(gl, vertexShader, fragmentShader);
+    gl.useProgram(program);
+
+    const aPosition = gl.getAttribLocation(program, "aPosition");
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    // calculate the geometrical center
+    const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+    const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+
+    // pass the center of rotation
+    const uCenter = gl.getUniformLocation(program, "uCenter");
+    gl.uniform2fv(uCenter, [centerX, centerY]);
+
+    // pass translation value
+    const uTranslation = gl.getUniformLocation(program, "uTranslation");
+    gl.uniform2fv(uTranslation, translation);
+
+    // pass the rotation angle
+    const uAngle = gl.getUniformLocation(program, "uAngle");
+    gl.uniform1f(uAngle, rotationAngle);
+
+    // pass the scale value
+    const uScale = gl.getUniformLocation(program, "uScale");
+    gl.uniform1f(uScale, scale);
+
+    // pass the selected color
+    const uColor = gl.getUniformLocation(program, "uColor");
+    gl.uniform4fv(uColor, currentColor);
+
+    gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2);
+}
+
+function redraw() {
+    if(!isFilled) {
+        drawLines();
+    } else {
+        fillShape();
+    }
+}
+
+
+function fillShape() {
+    const vertices = pointsToVertices(pointsCopy);
+    const { success, triangles, errorMessage } = triangulate(vertices);
+
+    console.log("FILLING POINTS: ", vertices);
+
+    if (!success) {
+        console.error(errorMessage);
+        return;
+    }
+
+    // to make 2D array 1D means flattening
+    const flattenedTriangles = triangles.flatMap(index => [vertices[index].x, vertices[index].y]);
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(flattenedTriangles), gl.STATIC_DRAW);
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const program = createProgram(gl, vertexShader, fragmentShader);
+    gl.useProgram(program);
+
+    const aPosition = gl.getAttribLocation(program, "aPosition");
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    // calculate the geometrical center
+    const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+    const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
+
+    // pass the center of rotation
+    const uCenter = gl.getUniformLocation(program, "uCenter");
+    gl.uniform2fv(uCenter, [centerX, centerY]);
+
+    // pass translation value
+    const uTranslation = gl.getUniformLocation(program, "uTranslation");
+    gl.uniform2fv(uTranslation, translation);
+
+    // pass the rotation angle
+    const uAngle = gl.getUniformLocation(program, "uAngle");
+    gl.uniform1f(uAngle, rotationAngle);
+
+    const uScale = gl.getUniformLocation(program, "uScale");
+    gl.uniform1f(uScale, scale);
+
+    const uColor = gl.getUniformLocation(program, "uColor");
+    gl.uniform4fv(uColor, currentColor);
+
+    gl.drawArrays(gl.TRIANGLES, 0, flattenedTriangles.length / 2);
+}
+
+
+function pointsToVertices(pointsArray) {
+    const vertices = [];
+    for (let i = 0; i < pointsArray.length; i += 2) {
+        vertices.push({x: pointsArray[i], y: pointsArray[i + 1]});
+    }
+    return vertices;
+}
+
+
+// to convert HEX to RGBA
+function hexToRGBA(hex) {
+    const bigint = parseInt(hex.slice(1), 16);
+    const r = ((bigint >> 16) & 255) / 255;
+    const g = ((bigint >> 8) & 255) / 255;
+    const b = (bigint & 255) / 255;
+    return [r, g, b, 1.0];
+}
+
+
 
 
 /*function rotateShape(angle) {
@@ -237,111 +367,3 @@ window.onload = function init() {
 
     gl.drawArrays(gl.POINTS, 0, points.length / 2);
 }*/
-
-
-function drawLines() {
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
-
-    //drawPoints();
-
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-    const program = createProgram(gl, vertexShader, fragmentShader);
-    gl.useProgram(program);
-
-    const aPosition = gl.getAttribLocation(program, "aPosition");
-    gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
-
-    // pass translation value
-    const uTranslation = gl.getUniformLocation(program, "uTranslation");
-    gl.uniform2fv(uTranslation, translation);
-
-    // pass the scale value
-    //const uScale = gl.getUniformLocation(program, "uScale");
-    //gl.uniform1f(uScale, scale);
-
-    // pass the selected color
-    const uColor = gl.getUniformLocation(program, "uColor");
-    gl.uniform4fv(uColor, currentColor);
-
-    gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2);
-}
-
-function redraw() {
-    fillShape();
-}
-
-
-function fillShape() {
-    const vertices = pointsToVertices(pointsCopy);
-    const { success, triangles, errorMessage } = triangulate(vertices);
-
-    console.log("FILLING POINTS: ", vertices);
-
-    if (!success) {
-        console.error(errorMessage);
-        return;
-    }
-
-    // to make 2D array 1D means flattening
-    const flattenedTriangles = triangles.flatMap(index => [vertices[index].x, vertices[index].y]);
-
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(flattenedTriangles), gl.STATIC_DRAW);
-
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-    const program = createProgram(gl, vertexShader, fragmentShader);
-    gl.useProgram(program);
-
-    const aPosition = gl.getAttribLocation(program, "aPosition");
-    gl.enableVertexAttribArray(aPosition);
-    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
-
-    // pass translation value
-    const uTranslation = gl.getUniformLocation(program, "uTranslation");
-    gl.uniform2fv(uTranslation, translation);
-
-    // pass the center of rotation
-    const centerX = points.reduce((sum, _, i) => i % 2 === 0 ? sum + points[i] : sum, 0) / (points.length / 2);
-    const centerY = points.reduce((sum, _, i) => i % 2 !== 0 ? sum + points[i] : sum, 0) / (points.length / 2);
-    const uCenter = gl.getUniformLocation(program, "uCenter");
-    gl.uniform2fv(uCenter, [centerX, centerY]);
-
-    // pass the rotation angle
-    const uAngle = gl.getUniformLocation(program, "uAngle");
-    gl.uniform1f(uAngle, rotationAngle);
-
-
-    // pass the scale value
-    //const uScale = gl.getUniformLocation(program, "uScale");
-    //gl.uniform1f(uScale, scale);
-
-    const uColor = gl.getUniformLocation(program, "uColor");
-    gl.uniform4fv(uColor, currentColor);
-
-    gl.drawArrays(gl.TRIANGLES, 0, flattenedTriangles.length / 2);
-}
-
-
-function pointsToVertices(pointsArray) {
-    const vertices = [];
-    for (let i = 0; i < pointsArray.length; i += 2) {
-        vertices.push({x: pointsArray[i], y: pointsArray[i + 1]});
-    }
-    return vertices;
-}
-
-
-// to convert HEX to normalized RGBA
-function hexToRGBA(hex) {
-    const bigint = parseInt(hex.slice(1), 16);
-    const r = ((bigint >> 16) & 255) / 255;
-    const g = ((bigint >> 8) & 255) / 255;
-    const b = (bigint & 255) / 255;
-    return [r, g, b, 1.0];
-}
